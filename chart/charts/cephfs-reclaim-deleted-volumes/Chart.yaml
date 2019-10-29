@@ -1,0 +1,7 @@
+apiVersion: v1
+name: cephfs-reclaim-deleted-volumes
+version: 0.1.0
+description: A Helm chart to reclaim deleted volumes
+maintainers:
+- name: CERN IT-CDA-WF
+  email: openshift-admins@cern.ch

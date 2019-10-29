@@ -1,0 +1,7 @@
+apiVersion: v1
+name: cephfs-backup-pvs
+version: 0.1.0
+description: A Helm chart to backup persistent volumes
+maintainers:
+- name: CERN IT-CDA-WF
+  email: openshift-admins@cern.ch

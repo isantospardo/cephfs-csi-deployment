@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    openshift.io/description: "Infrastructure components for cephfs support in CERN Openshift. See https://gitlab.cern.ch/paas-tools/infrastructure/cephfs-csi-deployment"
+  name: cephfs-permission-initialization
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      deployment: cephfs-permission-initialization
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+      labels:
+        deployment: cephfs-permission-initialization
+    spec:
+      serviceAccount: {{ .Values.pvController.serviceAccount }}
+      containers:
+      - name: cephfs-permission-initialization
+        image: {{ .Values.pvController.image }}
+        args:
+        - -namespaceJob={{ .Release.Namespace }}
+        - -saInitPermissionsCephfs={{ .Values.initPermissionJobs.serviceAccount }}
+{{- range $nodeSelectorKey, $nodeSelectorValue := .Values.initPermissionJobs.nodeSelector }}
+        - -nodeSelectorJob={{ $nodeSelectorKey }}={{ $nodeSelectorValue }}
+{{- end }}
+        imagePullPolicy: Always
+        # It needs to be the same namespace specified in the namespaceJob flag passed to the PV controller.
+        # We need this to collect the secrets of the PVs.
+        # By default we store this information in the namespace where the `manila-provisioner` is.
+        {{- if .Values.pvController.nodeSelector }}
+        nodeSelector:
+          {{ toYaml .Values.pvController.nodeSelector | indent 8 }}
+        {{- end }}
+        ports:
+          - containerPort: 8080

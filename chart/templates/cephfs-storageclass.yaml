@@ -1,0 +1,57 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: cephfs
+  annotations:
+    description: "Standard CephFS volume"
+
+    storageclass.kubernetes.io/is-default-class: {{ .Values.manilaProvisioner.isDefaultStorageClass | default false | toString | quote }}
+
+    # CIPAAS-569: the following annotations are used by an OPA rule
+    # to manipulate properties of PVs and PVCs using the cephfs storageclass
+    # cf. https://gitlab.cern.ch/paas-tools/infrastructure/openpolicyagent
+
+    # CIPAAS-549 always set all access modes to cephfs PV and PVC
+    # (cephfs manila provisioner only sets the modes specified in PVC, which default to RWO
+    # and thus does not work with rolling deployments)
+    pvc.opa.openshift.cern.ch/add-access-modes: |
+      - ReadWriteMany
+      - ReadWriteOnce
+      - ReadOnlyMany
+
+    # CIPAAS-543: Trigger a controller which grants non-root users permissions on new volumes
+    # CIPAAS-542: Control how PVs should be reclaimed after a PVC is deleted
+    pv.opa.openshift.cern.ch/set-default-annotations: |
+      init-permission-volumes.cern.ch/init-permission: "true"
+      reclaim-volumes.cern.ch/deletion-grace-period-after-release: {{ .Values.reclaimDeletedVolumes.gracePeriodBeforeDeletingReleasedPV }}
+      reclaim-volumes.cern.ch/no-grace-period-if-time-since-creation-is-less-than: {{ .Values.reclaimDeletedVolumes.noGracePeriodIfTimeSinceCreationIsLessThan }}
+
+    # CIPAAS-451: cephfs PVs should be backed up
+    pv.opa.openshift.cern.ch/set-default-labels: |
+      backup-cephfs-volumes.cern.ch/backup: "true"
+
+    # LEGACY annotations before CIPAAS-569
+    # TODO: remove the annotations below when controllers have been updated to use annotations on PVs instead
+    init-permission-volumes.cern.ch/init-permission: "true"
+    time-reclaim-volumes.cern.ch/time-reclaim: {{ .Values.reclaimDeletedVolumes.gracePeriodBeforeDeletingReleasedPV }}
+
+provisioner: manila-provisioner
+parameters:
+  type: {{ .Values.manilaProvisioner.sharesType }}
+  zones: nova
+  osSecretName: manila-provisioner-os-credentials
+  osSecretNamespace: {{ .Release.Namespace }}
+  protocol: CEPHFS
+  mounter: kernel
+  backend: csi-cephfs
+  csi-driver: csi-cephfsplugin
+  provisionVolume: "false"
+mountOptions:
+  # Do not update file access time, saves some operations on the network filesystem
+  # As of July 2019, this option is ignored by the cephfs-csi driver due to https://github.com/ceph/ceph-csi/issues/292
+  # but we want it present when the issue is resolved. In addition, the manila provisioner does not pass
+  # the mountOptions to the PVs it created. See also CIPAAS-554.
+  - noatime
+# do not immediately delete volumes on deletion, apply a grace period as per https://its.cern.ch/jira/browse/CIPAAS-542
+reclaimPolicy: Retain
+volumeBindingMode: Immediate

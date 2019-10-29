@@ -1,0 +1,152 @@
+
+# sets up permission for tiller to deploy the cephfs components
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tiller
+  namespace: {{ .Values.namespace }}
+  annotations:
+    description: The serviceAccount to be used by Helm's Tiller service
+
+---
+
+kind: RoleBinding
+apiVersion: authorization.openshift.io/v1
+metadata:
+  name: tiller-admin
+  namespace: {{ .Values.namespace }}
+  annotations:
+    description: Grants the tiller serviceAccount admin permission on the namespace where cephfs is deployed
+subjects:
+- kind: ServiceAccount
+  name: tiller
+  namespace: {{ .Values.namespace }}
+roleRef:
+  name: admin
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.tillerClusterRoleName }}
+  annotations:
+    description: Permissions on the cluster necessary for Helm to deploy cephfs components
+# to deploy cephfs, tiller needs the permissions to:
+# - manage storageclass resources
+# - manage SCC resources
+# - manage clusterrolebinding (for cephfs driver component)
+# and we need to give it as much permission as tiller itself needs to give the various serviceAccounts used
+# by the cephfs driver, i.e: system:csi-external-attacher and system:csi-external-provisioner
+# This is because a user cannot give another user more permissions than it has itself, to prevent privilege
+# escalation.
+rules:
+# manage storageclass
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["*"]
+# manage SCC
+- apiGroups: ["security.openshift.io"]
+  resources: ["securitycontextconstraints"]
+  verbs: ["*"]
+# manage clusterrolebinding
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterrolebindings"]
+  verbs: ["*"]
+# permissions from system:csi-external-attacher
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - persistentvolumes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# permissions from system:csi-external-provisioner
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  attributeRestrictions: null
+  resources:
+  - volumeattachments
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.tillerClusterRoleBindingName }}
+  annotations:
+    description: Grants the tiller serviceAccount the necessary permissions on the cluster to deploy cephfs components
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.tillerClusterRoleName }}
+subjects:
+  - kind: ServiceAccount
+    name: tiller
+    namespace: {{ .Values.namespace }}
+

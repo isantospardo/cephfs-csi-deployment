@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: manila-provisioner
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: manila-provisioner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: manila-provisioner
+  template:
+    metadata:
+      labels:
+        app: manila-provisioner
+    spec:
+      serviceAccount: manila-provisioner
+      containers:
+      - name: manila-provisioner
+        image: {{ .Values.manilaProvisioner.image }}
+        imagePullPolicy: IfNotPresent
+        args: [ "--provisioner=manila-provisioner" ]

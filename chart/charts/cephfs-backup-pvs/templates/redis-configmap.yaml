@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: {{ .Release.Namespace }}
+data:
+  redis.conf: |+
+    # we need this to disable persistency data in redis.
+    # We just need to trust the data in cache as the
+    # data stored is going to be filed out once a day.
+    # That is why we need to set up appendonly to no and save to empty.
+    save ""
+    appendonly no

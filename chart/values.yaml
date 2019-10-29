@@ -1,0 +1,42 @@
+manilaProvisioner:
+  # We use the v1.13.1 which at the moment is the latest because of
+  # using the mounter: kernel instead of fuse
+  # see https://github.com/kubernetes/cloud-provider-openstack/blob/master/docs/using-manila-provisioner.md#authentication-with-manila-v2-client
+  image: k8scloudprovider/manila-provisioner:1.13.1
+  sharesType: "Meyrin CephFS"
+  # be careful that no PVC can be created if several storageClasses are declared as the default one!
+  # Cf. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#class-1
+  isDefaultStorageClass: true
+
+cephfsPlugin:
+  # We use the v0.3.0 and not the latest cause of the kubernetes
+  # version 1.11 used in okd 3.11
+  # see https://github.com/ceph/ceph-csi/tree/master#supported-platforms
+  image: quay.io/cephcsi/cephfsplugin:v0.3.0
+  # We use the v0.3.0 and not the latest cause of the kubernetes
+  # version 1.11 used in okd 3.11
+  # see https://github.com/ceph/ceph-csi/tree/master#supported-platforms
+  driverRegistrarImage: quay.io/k8scsi/driver-registrar:v0.3.0
+
+csiAttacher:
+  # We use the v0.3.0 and not the latest cause of the Kubernetes
+  # version 1.11 used in okd 3.11
+  # see https://github.com/ceph/ceph-csi/tree/master#supported-platforms
+  image: quay.io/k8scsi/csi-attacher:v0.3.0
+
+openstack:
+  authURL: https://keystone.cern.ch/v3
+  domainID: default
+  region: cern
+  userName: CHANGEME
+  password: CHANGEME
+  projectID: CHANGEME
+
+reclaimDeletedVolumes:
+  # We set the grace period of 720h (30 days) for Cephfs PVs in the production cluster,
+  # the time units to be used are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+  gracePeriodBeforeDeletingReleasedPV: 720h
+  # no point in applying a grace period for a PV if it's deleted right after it's been created.
+  # This avoid keeping many PVs around when we have a loop of PVC creation-deletion (this can happen
+  # with templates/APBs that fail provisioning)
+  noGracePeriodIfTimeSinceCreationIsLessThan: 2h

@@ -1,0 +1,12 @@
+apiVersion: v1
+description: A Helm chart to deploy Cephfs CSI driver with Manila provisioning for Openshift at CERN
+details: Deploys all the components for using CephFS shares from Manila in Openshift
+name: cern-openshift-cephfs
+icon: https://ceph.com/wp-content/uploads/2016/07/Ceph_Logo_Standard_RGB_120411_fa.png
+keywords:
+- cephfs
+- csi
+- manila
+maintainers:
+- name: CERN IT-CDA-WF
+  email: openshift-admins@cern.ch

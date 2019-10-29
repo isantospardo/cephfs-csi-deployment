@@ -1,0 +1,11 @@
+pvController:
+  image: gitlab-registry.cern.ch/paas-tools/storage/init-permission-cephfs-volumes
+  serviceAccount: cephfs-init-permissions-controllers
+  nodeSelector:
+    node-role.kubernetes.io/master: "true"
+
+initPermissionJobs:
+  serviceAccount: cephfs-init-permissions-jobs
+  name: init-permissions
+  nodeSelector:
+    role: standard
