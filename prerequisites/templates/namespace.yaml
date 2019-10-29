@@ -1,0 +1,10 @@
+
+# Helm template to provision the paas-infra-cephfs namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    openshift.io/description: "Infrastructure components for cephfs support in CERN Openshift. See https://gitlab.cern.ch/paas-tools/infrastructure/cephfs-csi-deployment"
+    # allow deploying the CSI driver pods on all nodes
+    openshift.io/node-selector: ""
+  name: {{ .Values.namespace }}

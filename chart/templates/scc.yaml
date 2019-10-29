@@ -1,0 +1,38 @@
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  annotations:
+    kubernetes.io/description: 'grant all privileges to the Cephfs CSI driver and Manila volume provisioner.'
+  name: {{ .Release.Name }}-csi
+allowHostDirVolumePlugin: true
+allowHostIPC: true
+allowHostNetwork: true
+allowHostPID: true
+allowHostPorts: true
+allowPrivilegeEscalation: true
+allowPrivilegedContainer: true
+allowedCapabilities:
+- '*'
+allowedUnsafeSysctls:
+- '*'
+defaultAddCapabilities: null
+fsGroup:
+  type: RunAsAny
+groups:
+priority: null
+readOnlyRootFilesystem: false
+requiredDropCapabilities: null
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+- '*'
+supplementalGroups:
+  type: RunAsAny
+users:
+- system:serviceaccount:{{ .Release.Namespace }}:cephfs-csi-attacher
+- system:serviceaccount:{{ .Release.Namespace }}:manila-provisioner
+- system:serviceaccount:{{ .Release.Namespace }}:cephfs-csi-nodeplugin
+volumes:
+- '*'

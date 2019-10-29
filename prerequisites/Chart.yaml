@@ -1,0 +1,7 @@
+apiVersion: v1
+name: cern-openshift-cephfs-deploy
+version: 0.1.0
+description: Helm chart to deploy the prerequisites for the deployment of cephfs components
+maintainers:
+- name: CERN IT-CDA-WF
+  email: openshift-admins@cern.ch

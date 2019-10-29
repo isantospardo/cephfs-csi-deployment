@@ -1,0 +1,73 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: forget-backup-volumes-cephfs
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    description: "Weekly restic backup forget for CephFS volumes."
+  labels:
+    app: restic-backup-forget
+spec:
+  schedule: {{ .Values.backupForget.schedule }}
+  concurrencyPolicy: Allow
+  jobTemplate:
+    metadata:
+      labels:
+        app: restic-backup
+    spec:
+      successfulJobsHistoryLimit: 1
+      failedJobsHistoryLimit: 1
+      activeDeadlineSeconds: 86400 #24h
+      backoffLimit: {{ .Values.backupForget.retries }}
+      completions: 1
+      parallelism: 1
+      template:
+        spec:
+          serviceAccountName: {{ .Values.backupForget.serviceAccountName }}
+          containers:
+          - image: {{ .Values.cronjob.image }}
+            name:  forget-backups-volumes-cephfs
+            volumeMounts:
+            - mountPath: /cache
+              name: cache
+            env:
+            # env variables we need for restic backup
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: cephfs-backup-s3-access-key
+                  name: cephfs-backup-secrets
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: cephfs-backup-s3-secret-key
+                  name: cephfs-backup-secrets
+            - name: RESTIC_REPOSITORY
+              valueFrom:
+                secretKeyRef:
+                  key: cephfs-backup-registry-repository
+                  name: cephfs-backup-secrets
+            - name: RESTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: cephfs-backup-password
+                  name: cephfs-backup-secrets
+            # arguments for restic forget
+            - name: restic_forget_args
+              value: {{ .Values.backup.resticForgetArgs }}
+            command: [ "/forget_backup_pvs.sh" ]
+            lifecycle:
+              preStop:
+                exec:
+                  # In case the pod gets terminated (e.g. we reach the job's activeDeadlineSeconds),
+                  # send ctrl-c and wait for main process to perform cleanup and exit cleanly.
+                  command: [ "/bin/sh", "-c", "killall -INT restic; sleep 30" ]
+          volumes:
+          - name: cache
+            emptyDir: {}
+          # We use Never because of the retriy policy we are using,
+          # with never it will recreate the pod to avoid to use the older emptyDir/hostPath.
+          # There are improvements in 1.12 (in OKD4+ we could use OnFailure and
+          # restart the container in the same pod rather than Never, which starts a new pod)
+          # https://github.com/kubernetes/kubernetes/issues/54870
+          restartPolicy: Never

@@ -1,0 +1,76 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: backup-volumes-cephfs
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    description: "Nightly restic backup for CephFS volumes."
+  labels:
+    app: restic-backup
+spec:
+  schedule: {{ .Values.backup.schedule }}
+  concurrencyPolicy: Allow
+  jobTemplate:
+    metadata:
+      labels:
+        app: restic-backup
+    spec:
+      successfulJobsHistoryLimit: 1
+      failedJobsHistoryLimit: 1
+      activeDeadlineSeconds: 86400 #24h
+      backoffLimit: 2
+      # we are in the "parallel jobs with a work queue" scenario from https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/
+      # thus do not specify `.spec.completions` and set `.spec.parallelism`
+      parallelism: {{ .Values.backup.parallelism }}
+      template:
+        spec:
+          serviceAccountName: {{ .Values.backup.serviceAccountName }}
+          initContainers:
+          - image: {{ .Values.cronjob.image }}
+            name:  enqueue-volumes-cephfs
+            env:
+            command: [ "/enqueue_pvs.sh" ]
+          containers:
+          - image: {{ .Values.cronjob.image }}
+            name:  backups-volumes-cephfs
+            securityContext:
+              privileged: true
+              runAsUser: 0
+            volumeMounts:
+            - mountPath: /cache
+              name: cache
+            env:
+            # env variables we need for restic backup
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: cephfs-backup-s3-access-key
+                  name: cephfs-backup-secrets
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: cephfs-backup-s3-secret-key
+                  name: cephfs-backup-secrets
+            - name: RESTIC_REPOSITORY
+              valueFrom:
+                secretKeyRef:
+                  key: cephfs-backup-registry-repository
+                  name: cephfs-backup-secrets
+            - name: RESTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: cephfs-backup-password
+                  name: cephfs-backup-secrets
+            command: [ "/backup_pvs.sh" ]
+            lifecycle:
+              preStop:
+                exec:
+                  # In case the pod gets terminated (e.g. we reach the job's activeDeadlineSeconds),
+                  # send ctrl-c and wait for main process to perform cleanup and exit cleanly.
+                  command: [ "/bin/sh", "-c", "killall -INT restic; sleep 30" ]
+          volumes:
+          - name: cache
+            emptyDir: {}
+          # We user Never because we prefer to start a new container when failure.
+          # This will start from scratch for the rest of the PVs to backup.
+          restartPolicy: Never

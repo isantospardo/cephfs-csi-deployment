@@ -1,0 +1,30 @@
+backup:
+  schedule: "0 20 * * *"
+  serviceAccountName: cephfs-backup-job
+  parallelism: 2
+
+backupForget:
+  # Forget options from https://restic.readthedocs.io/en/latest/060_forget.html
+  # restic backups are only for disaster recovery. We don't need to keep many of them,
+  # we'll use snapshots instead for point-in-time restores.
+  resticForgetArgs: --keep-yearly 3 --keep-monthly 3 --keep-weekly 4 --keep-daily 7 --prune
+  serviceAccountName: cephfs-backup-job
+  # if backups did not complete when pruning starts, it will fail to acquire the lock.
+  # So don't hesitate and retry a number of times in hope that the lock will be released eventually.
+  # Kubernetes will have increasing backoff and eventually retry every 6 min.
+  # The schedule needs to be in a different time window than the backup schedule.
+  # We need this because we back up all PVs to a single restic repo, and restic forget
+  # needs exclusive lock on that repo.
+  retries: 40
+  schedule: "0 5 * * SAT"
+
+
+s3:
+  cephfsBackupS3AccessKey: "VALUE_SET_IN_CI_VARIABLES"
+  cephfsBackupS3SecretKey: "VALUE_SET_IN_CI_VARIABLES"
+  cephfsBackupPassword: "VALUE_SET_IN_CI_VARIABLES"
+  # cephfsBackupRegistryRepository should look like s3:https://s3.cern.ch/<bucket>/restic-backup
+  cephfsBackupRegistryRepository: "VALUE_SET_IN_CI_VARIABLES"
+
+cronjob:
+  image: gitlab-registry.cern.ch/paas-tools/storage/backup-cephfs-volumes

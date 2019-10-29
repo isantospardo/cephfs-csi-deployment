@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-master
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: master
+          image: redis
+          env:
+            - name: MASTER
+              value: "true"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          # We need this to run redis with the specific redis configuration file from a configmap
+          command: ["redis-server", "/data/redis.conf"]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-configuration
+              mountPath: /data
+      volumes:
+        - name: redis-configuration
+          configMap:
+            name: redis-config
+            defaultMode: 0755

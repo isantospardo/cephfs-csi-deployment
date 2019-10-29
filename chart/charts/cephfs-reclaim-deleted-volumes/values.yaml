@@ -1,0 +1,5 @@
+reclaimDeletedVolumes:
+  image: gitlab-registry.cern.ch/paas-tools/storage/reclaim-cephfs-volumes
+  #  Runs the job once an hour (UTC)
+  schedule: "0 * * * *"
+  serviceAccount: manila-provisioner
